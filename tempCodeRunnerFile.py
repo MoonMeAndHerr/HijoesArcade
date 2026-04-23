@@ -1,0 +1,1 @@
+                            optimize_engine.start_game(screen, is_muted)
