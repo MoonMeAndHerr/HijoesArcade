@@ -35,7 +35,7 @@ try:
     pygame.mixer.music.play(-1)
 except: pass
 try:
-    click_sound = pygame.mixer.Sound("click.mp3")
+    click_sound = pygame.mixer.Sound("click.wav")
     click_sound.set_volume(0.7)
 except: pass
 

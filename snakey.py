@@ -99,8 +99,12 @@ def start_snakey(screen, is_muted, players, p1_name="P1", p2_name="P2"):
     clock = pygame.time.Clock()
     WIDTH, HEIGHT = screen.get_size()
     
-    # REMOVED: All the pausing and reloading of bg_music.mp3! 
-    # It will now seamlessly continue the main menu track.
+    bg_music = None
+    try:
+        bg_music = pygame.mixer.Sound("bg_music.mp3") 
+        bg_music.set_volume(0.3)
+        if not is_muted: bg_music.play(loops=-1)
+    except FileNotFoundError: pass
 
     BG_COLOR, WHITE, CYAN, GREEN, RED, GRAY, GOLD = (15, 20, 15), (255, 255, 255), (0, 255, 255), (50, 255, 100), (255, 50, 50), (100, 100, 100), (255, 215, 0)
     
@@ -108,8 +112,9 @@ def start_snakey(screen, is_muted, players, p1_name="P1", p2_name="P2"):
     font = pygame.font.Font(None, 50)
     small_font = pygame.font.Font(None, 30)
 
-    CELL_SIZE, COLS, ROWS, OFFSET_X, OFFSET_Y = 30, 40, 20, 40, 100
-    FULL_BOUNDS, INDEP_P1_BOUNDS, INDEP_P2_BOUNDS = (0, 40, 0, 20), (0, 19, 0, 20), (21, 40, 0, 20)
+    # ---> CHANGED: Reduced ROWS from 20 to 18 to give text room to breathe <---
+    CELL_SIZE, COLS, ROWS, OFFSET_X, OFFSET_Y = 30, 40, 18, 40, 100
+    FULL_BOUNDS, INDEP_P1_BOUNDS, INDEP_P2_BOUNDS = (0, 40, 0, 18), (0, 19, 0, 18), (21, 40, 0, 18)
 
     game_state = "MODE_SELECT" if players == 2 else "DIFFICULTY_SELECT"
     play_mode, difficulty = "RUMBLE", "NORMAL"
@@ -145,7 +150,6 @@ def start_snakey(screen, is_muted, players, p1_name="P1", p2_name="P2"):
             if event.type == pygame.QUIT: pygame.quit(); exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    # REMOVED: unpausing logic. Just smoothly exit!
                     if p2: return (f"SNAKEY ({difficulty})", max(p1.score, p2.score))
                     return (f"SNAKEY ({difficulty})", p1.score if p1 else 0)
                     
