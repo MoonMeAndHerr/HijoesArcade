@@ -44,13 +44,14 @@ def start_game(screen, is_muted):
     RED = (255, 50, 50)
     GREEN = (50, 255, 100)
     GRAY = (100, 100, 100)
+    GOLD = (255, 215, 0)
     
     font = pygame.font.Font(None, 60)
     small_font = pygame.font.Font(None, 35)
     huge_font = pygame.font.Font(None, 100)
 
-    # UI Setup - Lowered the button slightly more to prevent overlap
-    start_btn = SS_Button(WIDTH//2 - 200, HEIGHT - 120, 400, 70, "Begin Sampling !", CYAN, WHITE, font)
+    # UI Setup
+    start_btn = SS_Button(WIDTH//2 - 200, HEIGHT - 110, 400, 70, "Begin Sampling !", CYAN, WHITE, font)
 
     # Game Variables
     game_state = "INSTRUCTIONS"
@@ -67,12 +68,12 @@ def start_game(screen, is_muted):
     # Entities
     player_rect = pygame.Rect(WIDTH//2 - 50, HEIGHT - 100, 100, 20)
     data_points = []
-    fall_speed = 5.0
+    fall_speed = 6.0 
     spawn_timer = 0
 
     def spawn_data():
         val = random.randint(10, 90)
-        is_outlier = random.random() < 0.12 # Slightly higher outlier chance
+        is_outlier = random.random() < 0.15 # 15% outlier chance
         if is_outlier:
             val = random.choice([5, 95]) 
         
@@ -99,7 +100,7 @@ def start_game(screen, is_muted):
                     game_state = "INSTRUCTIONS"
                     score, lives, sample_count, sample_sum, current_mean = 0, 3, 0, 0.0, 50.0
                     margin_of_error = 10.0
-                    fall_speed = 5.0
+                    fall_speed = 6.0
                     data_points.clear()
             
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -113,17 +114,15 @@ def start_game(screen, is_muted):
             if (keys[pygame.K_RIGHT] or keys[pygame.K_d]) and player_rect.right < WIDTH:
                 player_rect.x += 12
 
-            # DYNAMIC DIFFICULTY: Spawn interval gets shorter as samples increase
-            # Starts at 40 frames, drops to a chaotic 12 frames at 100 samples
-            spawn_interval = max(12, 40 - (sample_count // 5) * 2)
+            # DYNAMIC DIFFICULTY: Faster scaling
+            spawn_interval = max(10, 40 - (sample_count // 4) * 2)
             
             spawn_timer += 1
             if spawn_timer > spawn_interval:
                 spawn_data()
                 spawn_timer = 0
             
-            # Speed also scales slightly
-            current_speed = fall_speed + (sample_count // 20)
+            current_speed = fall_speed + (sample_count // 15)
 
             for d in data_points[:]:
                 d["rect"].y += current_speed
@@ -134,7 +133,7 @@ def start_game(screen, is_muted):
                     current_mean = sample_sum / sample_count
                     
                     if d["outlier"]:
-                        margin_of_error = max(2.5, margin_of_error - 1.2) 
+                        margin_of_error = max(2.0, margin_of_error - 1.5) 
                     score += 10
                     data_points.remove(d)
                 
@@ -155,22 +154,30 @@ def start_game(screen, is_muted):
             title_surf = huge_font.render("STOCHASTIC SPACE", True, MAGENTA)
             screen.blit(title_surf, title_surf.get_rect(center=(WIDTH//2, 100)))
             
+            # ---> UPDATED RULES WITH EXPLICIT STRATEGY <---
             rules = [
                 "Objective: Maintain a Sample Mean of 50.0",
-                "1. Catch numbers to update your average.",
-                "2. Keep your Mean inside the [SAFE ZONE] at the bottom.",
-                "3. High numbers increase mean, low numbers decrease it.",
-                "4. Red OUTLIERS shrink your safe zone permanently!",
+                "1. Keep your Mean inside the [SAFE ZONE] at the bottom.",
+                "2. TO KEEP SIGNIFICANCE: Balance your catches!",
+                "   -> If Mean drifts RIGHT (high), catch LOW numbers to pull it left.",
+                "   -> If Mean drifts LEFT (low), catch HIGH numbers to pull it right.",
+                "3. ⚠ HARD MODE: Outliers (5 or 95) are hidden! READ the numbers.",
+                "   Catching an outlier shrinks your safe zone permanently!",
                 "",
                 "Failure to maintain significance costs 1 LIFE.",
                 "Controls: [A/D] or [ARROW KEYS]"
             ]
             
-            # Lifted the rules text Y-coordinate to avoid the button
             for i, line in enumerate(rules):
-                color = WHITE if i < 5 else RED
+                if i in [2, 3, 4]:
+                    color = GOLD
+                elif i in [5, 6]:
+                    color = RED
+                else:
+                    color = WHITE
+                
                 line_surf = small_font.render(line, True, color)
-                screen.blit(line_surf, line_surf.get_rect(center=(WIDTH//2, 200 + (i * 40))))
+                screen.blit(line_surf, line_surf.get_rect(center=(WIDTH//2, 190 + (i * 36))))
                 
             start_btn.check_hover(mouse_pos)
             start_btn.draw(screen)
@@ -190,15 +197,14 @@ def start_game(screen, is_muted):
             screen.blit(mean_label, (mean_x - mean_label.get_width()//2, HEIGHT-215))
 
             for d in data_points:
-                color = RED if d["outlier"] else CYAN
-                pygame.draw.circle(screen, color, d["rect"].center, 20)
+                pygame.draw.circle(screen, WHITE, d["rect"].center, 20)
                 val_surf = small_font.render(str(d["val"]), True, BG_COLOR)
                 screen.blit(val_surf, (d["rect"].centerx - val_surf.get_width()//2, d["rect"].centery - val_surf.get_height()//2))
 
             pygame.draw.rect(screen, MAGENTA, player_rect, border_radius=10)
             
             # UI
-            score_surf = small_font.render(f"SAMPLES (n): {sample_count}", True, WHITE)
+            score_surf = small_font.render(f"SAMPLES (n): {sample_count} | SCORE: {score}", True, WHITE)
             zone_surf = small_font.render(f"CONFIDENCE: ±{margin_of_error:.1f}", True, GREEN)
             screen.blit(score_surf, (20, 20))
             screen.blit(zone_surf, (20, 60))
@@ -209,7 +215,7 @@ def start_game(screen, is_muted):
                 overlay = pygame.Surface((WIDTH, HEIGHT)); overlay.set_alpha(220); overlay.fill((0,0,0))
                 screen.blit(overlay, (0,0))
                 go_surf = huge_font.render("INSIGNIFICANT RESULT", True, RED)
-                final_surf = font.render(f"Samples (n): {sample_count}", True, WHITE)
+                final_surf = font.render(f"Final Score: {score}", True, WHITE)
                 restart_surf = small_font.render("Press [R] to Resample or [ESC] for Menu", True, GRAY)
                 screen.blit(go_surf, (WIDTH//2 - go_surf.get_width()//2, HEIGHT//2 - 100))
                 screen.blit(final_surf, (WIDTH//2 - final_surf.get_width()//2, HEIGHT//2 + 20))

@@ -154,9 +154,20 @@ def start_game(screen, is_muted):
             price_history.pop(0)
             price_history.append(current_price)
             
-            # 4. Calculate PnL
+            # 4. Calculate PnL (BALANCED CHALLENGE LOGIC)
             price_movement = -delta 
-            pnl_tick = position * price_movement * leverage
+            
+            if position == 1: # LONG
+                pnl_tick = price_movement * leverage
+            elif position == -1: # SHORT
+                pnl_tick = -price_movement * leverage
+            else: # FLAT (No keys pressed)
+                if price_movement < 0: # Market is crashing
+                    # ---> FIX: Bleed rate reduced to 25% of normal leverage <---
+                    pnl_tick = price_movement * (leverage * 0.25) 
+                else: # Market is rising
+                    pnl_tick = 0 # No free profit
+                    
             capital += pnl_tick
             
             # 5. Check End Conditions
@@ -180,10 +191,10 @@ def start_game(screen, is_muted):
                 "",
                 "[UP] = LONG (+ Profit when line goes UP)",
                 "[DOWN] = SHORT (+ Profit when line goes DOWN)",
-                "Release keys = FLAT (Close position)",
+                "Release keys = FLAT (⚠ Capital SLOWLY BLEEDS if market drops!)",
                 "",
-                "⚠ THE SPREAD: Every time you open a trade, you pay a $100 fee. Do not spam keys.",
-                "⚠ VOLATILITY: Watch for High-Impact News warnings. The market will violently spike.",
+                "⚠ THE SPREAD: Every time you open a trade, you pay a $100 fee.",
+                "⚠ VOLATILITY: Watch for High-Impact News warnings. The market will spike.",
                 "Bankrupt ($0) = Immediate Game Over."
             ]
             
@@ -212,7 +223,6 @@ def start_game(screen, is_muted):
             if news_triggering:
                 warning_text = f"HIGH IMPACT NEWS IN: {math.ceil(news_countdown / 60)}s"
                 warn_surf = font.render(warning_text, True, WARNING_COLOR)
-                # Flash the background of the warning
                 if (news_countdown // 10) % 2 == 0:
                     pygame.draw.rect(screen, SHORT_COLOR, (WIDTH//2 - warn_surf.get_width()//2 - 20, HEIGHT - 100, warn_surf.get_width() + 40, 60))
                 screen.blit(warn_surf, (WIDTH//2 - warn_surf.get_width()//2, HEIGHT - 90))

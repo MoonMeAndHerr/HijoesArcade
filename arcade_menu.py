@@ -3,7 +3,7 @@ import sys
 import random
 import math
 import database 
-import pong, starship, russian_roulette, pacman, tetris
+import pong, starship, russian_roulette, pacman, tetris, snakey
 import compute_core, axiom_realm, market_matrix, optimize_engine, stochastic_space
 
 pygame.init()
@@ -20,10 +20,10 @@ BTN_COLOR, HOVER_COLOR = (45, 45, 85), (100, 100, 255)
 EXIT_COLOR, EXIT_HOVER = (150, 40, 40), (220, 60, 60)
 TITLE_COLOR, EDU_COLOR = (0, 255, 200), (40, 80, 60)
 EDU_HOVER, GOLD = (80, 160, 120), (255, 215, 0)
-WHITE = (255, 255, 255) # ---> FIX: Added WHITE!
+WHITE = (255, 255, 255)
 
 title_font = pygame.font.Font(None, 90)
-font = pygame.font.Font(None, 60) # ---> FIX: Added the missing medium font!
+font = pygame.font.Font(None, 60) 
 btn_font = pygame.font.Font(None, 38)
 small_font = pygame.font.Font(None, 30)
 
@@ -62,11 +62,20 @@ class Button:
 
 btn_w, btn_h, center_x, gap_x = 450, 55, WIDTH // 2, 30
 main_buttons = []
-retro_games = ["Pong", "Starship", "Russian Roulette", "Pacman", "Tetris"]
+retro_games = ["Pong", "Starship", "Russian Roulette", "Pacman", "Tetris", "Snakey"]
 edu_games = ["Compute Core (Comp Math)", "Axiom Realm (Pure Math)", "Market Matrix (Fin Math)", "Optimize Engine (O.R.)", "Stochastic Space (Stats)"]
 
-for i, n in enumerate(retro_games): main_buttons.append(Button(center_x-btn_w-gap_x, 180+(i*75), btn_w, btn_h, n, BTN_COLOR, HOVER_COLOR))
-for i, n in enumerate(edu_games): main_buttons.append(Button(center_x+gap_x, 180+(i*75), btn_w, btn_h, n, EDU_COLOR, EDU_HOVER))
+start_y = 160
+y_gap = 65 
+
+left_height = (len(retro_games) - 1) * y_gap + btn_h
+right_height = (len(edu_games) - 1) * y_gap + btn_h
+right_y_offset = (left_height - right_height) // 2 
+
+for i, n in enumerate(retro_games): 
+    main_buttons.append(Button(center_x-btn_w-gap_x, start_y+(i*y_gap), btn_w, btn_h, n, BTN_COLOR, HOVER_COLOR))
+for i, n in enumerate(edu_games): 
+    main_buttons.append(Button(center_x+gap_x, start_y + right_y_offset + (i*y_gap), btn_w, btn_h, n, EDU_COLOR, EDU_HOVER))
 
 exit_btn = Button(center_x - 100, HEIGHT - 140, 200, 50, "EXIT ARCADE", EXIT_COLOR, EXIT_HOVER, small_font)
 mute_btn = Button(30, HEIGHT - 140, 120, 50, "MUTE", EXIT_COLOR, EXIT_HOVER, small_font)
@@ -83,7 +92,6 @@ current_state = "MAIN_MENU"
 target_game, temp_players = "", 1
 p1_name, p2_name, active_input = "", "", 1
 
-# --- DB Variables ---
 pending_game = ""
 pending_score = 0
 hs_name = ""
@@ -94,8 +102,15 @@ clock = pygame.time.Clock()
 def check_score_return(game_id, score_returned):
     global current_state, pending_game, pending_score, hs_name, sb_message
     if score_returned is not None:
-        pending_game = game_id.upper()
-        pending_score = score_returned
+        
+        # --> ADDED: Unpacks the tuple from Snakey so we have 2 distinct scoreboards <--
+        if isinstance(score_returned, tuple):
+            pending_game = score_returned[0]
+            pending_score = score_returned[1]
+        else:
+            pending_game = game_id.upper()
+            pending_score = score_returned
+            
         if database.is_high_score(pending_game, pending_score):
             current_state = "NEW_HIGH_SCORE"
             hs_name = ""
@@ -112,7 +127,6 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT: running = False
         
-        # High Score Entry Logic
         if event.type == pygame.KEYDOWN and current_state == "NEW_HIGH_SCORE":
             if event.key == pygame.K_RETURN and hs_name.strip() != "":
                 database.add_score(pending_game, hs_name.strip(), pending_score)
@@ -123,7 +137,6 @@ while running:
             else:
                 if len(hs_name) < 12: hs_name += event.unicode
                 
-        # 2P Name Entry Logic
         elif event.type == pygame.KEYDOWN and current_state == "NAME_INPUT":
             if event.key == pygame.K_RETURN:
                 if active_input == 1: active_input = 2
@@ -137,6 +150,9 @@ while running:
                         elif target_game == "Russian Roulette": russian_roulette.start_roulette(screen, is_muted, 2, p1_name, p2_name); current_state = "MAIN_MENU"
                         elif target_game == "Pacman": check_score_return("PACMAN", pacman.start_pacman(screen, is_muted, 2, p1_name, p2_name))
                         elif target_game == "Tetris": check_score_return("TETRIS", tetris.start_tetris(screen, is_muted, 2, p1_name, p2_name))
+                        elif target_game == "Snakey": check_score_return("SNAKEY", snakey.start_snakey(screen, is_muted, 2, p1_name, p2_name))
+                        current_state = "MAIN_MENU"
+                        
             elif event.key == pygame.K_BACKSPACE:
                 if active_input == 1: p1_name = p1_name[:-1]
                 else: p2_name = p2_name[:-1]
@@ -177,6 +193,7 @@ while running:
                         elif target_game == "Russian Roulette": russian_roulette.start_roulette(screen, is_muted, 1, p1_name, p2_name); current_state = "MAIN_MENU"
                         elif target_game == "Pacman": check_score_return("PACMAN", pacman.start_pacman(screen, is_muted, 1, p1_name, p2_name))
                         elif target_game == "Tetris": check_score_return("TETRIS", tetris.start_tetris(screen, is_muted, 1, p1_name, p2_name))
+                        elif target_game == "Snakey": check_score_return("SNAKEY", snakey.start_snakey(screen, is_muted, 1, p1_name, p2_name))
                 elif sel_2p.is_hovered:
                     temp_players, p1_name, p2_name, active_input = 2, "", "", 1
                     current_state = "NAME_INPUT"
@@ -203,8 +220,8 @@ while running:
     if current_state == "MAIN_MENU":
         title_surf = title_font.render("HIJOE'S ARCADE", True, TITLE_COLOR)
         screen.blit(title_surf, title_surf.get_rect(center=(center_x, 60)))
-        screen.blit(small_font.render("RETRO CLASSICS", True, (150, 150, 150)), (center_x-btn_w-gap_x, 145))
-        screen.blit(small_font.render("EDUCATIONAL MODULES", True, (150, 150, 150)), (center_x+gap_x, 145))
+        screen.blit(small_font.render("RETRO CLASSICS", True, (150, 150, 150)), (center_x-btn_w-gap_x, 135))
+        screen.blit(small_font.render("EDUCATIONAL MODULES", True, (150, 150, 150)), (center_x+gap_x, 135))
         for b in main_buttons: b.check_hover(mouse_pos); b.draw(screen)
         exit_btn.check_hover(mouse_pos); exit_btn.draw(screen)
         mute_btn.check_hover(mouse_pos); mute_btn.draw(screen)
@@ -231,7 +248,6 @@ while running:
     elif current_state == "NEW_HIGH_SCORE":
         title_surf = title_font.render("NEW HIGH SCORE!", True, GOLD)
         screen.blit(title_surf, title_surf.get_rect(center=(center_x, 150)))
-        
         score_surf = font.render(f"SCORE ACHIEVED: {pending_score}", True, WHITE)
         screen.blit(score_surf, score_surf.get_rect(center=(center_x, 250)))
         
@@ -239,7 +255,6 @@ while running:
         display_text = f"NAME: {hs_name}"
         if pygame.time.get_ticks() % 1000 < 500: display_text += "|"
         screen.blit(btn_font.render(display_text, True, TEXT_COLOR), (center_x-230, 365))
-        
         screen.blit(small_font.render("Type your name and press ENTER to save to the Hall of Fame", True, (150, 150, 150)), (center_x-320, 450))
 
     elif current_state == "SCOREBOARD":

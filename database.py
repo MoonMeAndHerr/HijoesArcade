@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import random
 
 DB_FILE = "arcade_scores.db"
 
@@ -15,10 +16,9 @@ def init_db():
     # Check if empty, then preset top 10 for the scorable games
     c.execute("SELECT COUNT(*) FROM scores")
     if c.fetchone()[0] == 0:
-        # Your custom names list!
-        names = ["Jay", "Yand", "Kay", "Noh", "Randy", "Meran", "snz", "b#sting0#", "102AM", "Amedin"]
+        base_names = ["Jay", "Yand", "Kay", "Noh", "Randy", "Meran", "snz", "b#sting0#", "102AM", "Amedin"]
         
-        # Realistic, handcrafted descending scores for each game
+        # Realistic scores + VERY HIGH Snakey scores
         realistic_scores = {
             "STARSHIP": [142, 115, 98, 85, 76, 62, 54, 45, 38, 29],
             "PACMAN": [4250, 3800, 3120, 2750, 2100, 1850, 1420, 1150, 980, 850],
@@ -27,13 +27,21 @@ def init_db():
             "COMPUTE CORE": [350, 310, 285, 250, 215, 180, 155, 130, 110, 95],
             "AXIOM REALM": [120, 105, 94, 85, 76, 68, 55, 48, 41, 32],
             "OPTIMIZE ENGINE": [450, 410, 375, 340, 315, 280, 255, 220, 195, 160],
-            "STOCHASTIC SPACE": [850, 780, 710, 650, 590, 530, 460, 410, 350, 290]
+            "STOCHASTIC SPACE": [850, 780, 710, 650, 590, 530, 460, 410, 350, 290],
+            "SNAKEY (NORMAL)": [35000, 31200, 28500, 25000, 21000, 18500, 15000, 12500, 10000, 8500],
+            "SNAKEY (HARD)": [28000, 25500, 21000, 18000, 15500, 12000, 9500, 8000, 6500, 5000]
         }
         
         preset_data = []
         for game, scores in realistic_scores.items():
+            current_names = base_names.copy()
+            
+            # Shuffle names for everything EXCEPT Snakey!
+            if "SNAKEY" not in game:
+                random.shuffle(current_names)
+                
             for i in range(10):
-                preset_data.append((game, names[i], scores[i]))
+                preset_data.append((game, current_names[i], scores[i]))
                 
         c.executemany("INSERT INTO scores (game_name, player_name, score) VALUES (?, ?, ?)", preset_data)
     
